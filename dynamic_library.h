@@ -182,12 +182,25 @@ void* GetFunctionPointerFromNativeLibrary(HMODULE library,
   return ::GetProcAddress(library, name);
 }
 
+void* GetFunctionPointerFromNativeLibrary(HMODULE library, int id) {
+  if (library == nullptr) return nullptr;
+  return ::GetProcAddress(library, MAKEINTRESOURCEA(id));
+}
+
 void* GetFunctionPointerFromNativeLibrary(
     const std::wstring& library_name, const char* name) {
   if (name == nullptr) return nullptr;
   HMODULE wellknown_handler = ::GetModuleHandle(library_name.c_str());
   if (nullptr == wellknown_handler) return nullptr;
   return GetFunctionPointerFromNativeLibrary(wellknown_handler, name);
+}
+
+void* GetFunctionPointerFromNativeLibrary(
+    const std::wstring& library_name, int id) {
+  if (library_name.empty()) return nullptr;
+  HMODULE wellknown_handler = ::GetModuleHandle(library_name.c_str());
+  if (nullptr == wellknown_handler) return nullptr;
+  return GetFunctionPointerFromNativeLibrary(wellknown_handler, id);
 }
 
 }  // namespace internal
@@ -218,11 +231,24 @@ class DynamicLibrary {
         return internal::GetFunctionPointerFromNativeLibrary(library_name_, function_name);
     }
 
+    void* GetFunctionPointer(int function_id) const {
+        if (!is_valid()) return nullptr;
+        if (library_name_.empty()) return internal::GetFunctionPointerFromNativeLibrary(library_, function_id);
+        return internal::GetFunctionPointerFromNativeLibrary(library_name_, function_id);
+    }
+
     template<typename R, typename... P>
     typename FunctorTraits<R, P...>::Type GetFunctionPointer(const std::string& InterfaceName) const {
         if (!is_valid() && InterfaceName.empty()) return nullptr;
         using Type = FunctorTraits<R, P...>::Type;
         return reinterpret_cast<Type>(DynamicLibrary::GetFunctionPointer(InterfaceName.c_str()));
+    }
+
+    template<typename R, typename... P>
+    typename FunctorTraits<R, P...>::Type GetFunctionPointer(int InterfaceID) const {
+        if (!is_valid()) return nullptr;
+        using Type = FunctorTraits<R, P...>::Type;
+        return reinterpret_cast<Type>(DynamicLibrary::GetFunctionPointer(InterfaceID));
     }
 
     void Reset(HMODULE library) {
